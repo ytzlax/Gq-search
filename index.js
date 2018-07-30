@@ -49,7 +49,7 @@ async function termsQuery(idsArr) {
     const response = await client.search({
         index: config.elasticIndex,
         body: {
-            size: config.numberOfDocToGet,
+            size: 10,
             query: {
                 "terms": {"entityId": idsArr}
             }
@@ -67,9 +67,8 @@ async function main() {
     console.time('termsQuery');
     const terms = await termsQuery(ids);
     console.timeEnd('termsQuery');
-
-    let x = 5;
-
+    console.log('mget result:', mget.docs.length);
+    console.log('terms result:', terms.hits.hits.length);
 }
 
 main();

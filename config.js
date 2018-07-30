@@ -1,6 +1,6 @@
 module.exports =
     {
-        numberOfDocToGet: 20,
+        numberOfDocToGet: 500,
         elasticIndex: "logstash-0"
     }
 
