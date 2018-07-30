@@ -26,8 +26,10 @@ async function getIdsArr() {
     const idsArr = [];
     let nemberOfDocs = await getNumberOfDocs();
     for (let i = 0; config.numberOfDocToGet > i; i++) {
-        let randomIter = Math.floor((Math.random() * 2) + 1);
-        let randomChar = randomIter == 1 ? 'a' : 'b';
+        // let randomIter = Math.floor((Math.random() * 2) + 1);
+        // let randomChar = randomIter == 1 ? 'a' : 'b';
+        let randomChar = 'a';
+
         let randomId = Math.floor((Math.random() * nemberOfDocs) + 1) + randomChar;
         if (idsArr.indexOf(randomId) < 0)
             idsArr.push(randomId);
@@ -49,7 +51,7 @@ async function termsQuery(idsArr) {
     const response = await client.search({
         index: config.elasticIndex,
         body: {
-            size: 10,
+            size: 10000,
             query: {
                 "terms": {"entityId": idsArr}
             }
