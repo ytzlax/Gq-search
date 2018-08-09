@@ -5,10 +5,27 @@ const client = new elasticsearch.Client({
 });
 
 
-function getNumberOfDocs() {
+function getNumberOfP() {
     return new Promise(resolve => {
         client.search({
-            index: config.elasticIndex,
+            index: config.elasticIndex + "-p0",
+            body: {
+                query: {
+                    match_all: {}
+                }
+            }
+        }).then(function (resp) {
+            resolve(resp.hits.total);
+        });
+    }, function (err) {
+        console.trace(err.message);
+    });
+}
+
+function getNumberOfN() {
+    return new Promise(resolve => {
+        client.search({
+            index: config.elasticIndex + "-n0",
             body: {
                 query: {
                     match_all: {}
@@ -24,38 +41,38 @@ function getNumberOfDocs() {
 
 async function getIdsArr() {
     const idsArr = [];
-    let nemberOfDocs = await getNumberOfDocs();
+    // let nemberOfDocs = await getNumberOfDocs();
     for (let i = 0; config.numberOfDocToGet > i; i++) {
         // let randomIter = Math.floor((Math.random() * 2) + 1);
         // let randomChar = randomIter == 1 ? 'a' : 'b';
-        let randomChar = 'a';
 
-        let randomId = Math.floor((Math.random() * nemberOfDocs) + 1) + randomChar;
+        let randomId = Math.floor((Math.random() * nemberOfDocs) + 1);
         if (idsArr.indexOf(randomId) < 0)
             idsArr.push(randomId);
     }
     return idsArr;
 }
 
-async function mgetQuery(ids) {
-    const idsArr = [];
-
-    ids.forEach((id) => {
-        idsArr.push({_index: config.elasticIndex, _type: 'doc', _id: id});
+async function getN(id) {
+    const response = await client.get({
+        index: config.elasticIndex + "-n0",
+        type: 'doc',
+        id: id,
+        _source: ["relation"]
     });
-    const response = await client.mget({body: {docs: idsArr}});
     return response;
 }
 
-async function termsQuery(idsArr) {
+async function maxQuery(nid) {
     const response = await client.search({
-        index: config.elasticIndex,
+        index: config.elasticIndex + "-p0",
+        _source: false,
         body: {
-            size: 10000,
+            size: 0,
             query: {
                 bool: {
                     filter: {
-                        "terms": {"entityId": idsArr}
+                        "term": {"nId": nid}
                     }
                 }
             }
@@ -64,17 +81,66 @@ async function termsQuery(idsArr) {
     return response;
 }
 
-async function main() {
-    const ids = await getIdsArr();
-    console.time('mgetQuery');
-    const mget = await mgetQuery(ids);
-    console.timeEnd('mgetQuery');
-    console.log('mget result:', mget.docs.length);
+async function arrayQuery(idsArr) {
+    const response = await client.search({
+        index: config.elasticIndex + "-p0",
+        _source: false,
+        body: {
+            size: 0,
+            query: {
+                "terms": {"entityId": idsArr}
+            }
+        }
+    });
+    return response;
+}
 
-    console.time('termsQuery');
-    const terms = await termsQuery(ids);
-    console.timeEnd('termsQuery');
-    console.log('terms result:', terms.hits.hits.length);
+function getRandomNetId(max) {
+    return Math.floor((Math.random() * max) + 0).toString()
+}
+
+async function indexResult(body) {
+    const response = await client.index({
+        index: 'gq_result',
+        type: '_doc',
+        body: body
+    });
+    return response;
+}
+
+async function main() {
+    // let numberOfN = await getNumberOfN();
+    let numberOfN = 10;
+
+    console.time('maxQuery');
+    const t0 = Date.now();
+
+    const terms = await maxQuery(getRandomNetId(numberOfN));
+    console.timeEnd('maxQuery');
+    var timeMax = Date.now() - t0;
+
+    console.log('maxQuery result:', terms.hits.total);
+    console.log("timeMax:", timeMax)
+    console.log("\n")
+
+    await indexResult({type: "maxQuery", performance: timeMax, meta_document_returns: terms.hits.total})
+
+    const n = await getN(getRandomNetId(numberOfN));
+
+    console.time('arrayQuery');
+    var t1 = Date.now();
+
+    const result = await arrayQuery(n._source.relation);
+
+    console.timeEnd('arrayQuery');
+    var timeArray = Date.now() - t1;
+
+
+    console.log('arrayQuery result:', result.hits.total);
+    console.log("timeArray:", timeArray)
+    await indexResult({type: "arrayQuery", performance: timeArray, meta_document_returns: result.hits.total})
+
+
 }
 
 main();
