@@ -53,7 +53,11 @@ async function termsQuery(idsArr) {
         body: {
             size: 10000,
             query: {
-                "terms": {"entityId": idsArr}
+                bool: {
+                    filter: {
+                        "terms": {"entityId": idsArr}
+                    }
+                }
             }
         }
     });
@@ -65,11 +69,11 @@ async function main() {
     console.time('mgetQuery');
     const mget = await mgetQuery(ids);
     console.timeEnd('mgetQuery');
+    console.log('mget result:', mget.docs.length);
 
     console.time('termsQuery');
     const terms = await termsQuery(ids);
     console.timeEnd('termsQuery');
-    console.log('mget result:', mget.docs.length);
     console.log('terms result:', terms.hits.hits.length);
 }
 
